@@ -4,16 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -26,11 +23,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             Tsoy_Konstantin_AppTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    GreetingApp()
                 }
             }
         }
@@ -38,9 +32,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
+fun GreetingApp() {
+    // состояние для имени и для текста приветствия
+    var name by remember { mutableStateOf("") }
+    var greetingText by remember { mutableStateOf("Hello!") }
+
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
             .padding(24.dp),
@@ -48,31 +46,38 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Welcome to my first app!",
+            text = greetingText,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF6200EE)
+            color = Color(0xFF3F51B5)
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Created by Konstantin Tsoy 👋",
-            fontSize = 18.sp,
-            color = Color.DarkGray
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        TextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Enter your name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-        Image(
-            painter = painterResource(id = R.drawable.ic_launcher_foreground),
-            contentDescription = "App logo",
-            modifier = Modifier.size(120.dp)
-        )
+
+        Button(
+            onClick = {
+                greetingText = if (name.isNotBlank()) "Hello, $name!" else "Hello, stranger!"
+            }
+        ) {
+            Text("Greet Me")
+        }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
+fun GreetingAppPreview() {
     Tsoy_Konstantin_AppTheme {
-        Greeting("Android")
+        GreetingApp()
     }
 }
