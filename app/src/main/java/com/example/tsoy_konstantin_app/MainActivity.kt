@@ -7,8 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -24,60 +24,75 @@ class MainActivity : ComponentActivity() {
         setContent {
             Tsoy_Konstantin_AppTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    GreetingApp()
+                    FruitListApp()
                 }
             }
         }
     }
 }
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GreetingApp() {
-    // состояние для имени и для текста приветствия
-    var name by remember { mutableStateOf("") }
-    var greetingText by remember { mutableStateOf("Hello!") }
+fun FruitListApp() {
+    val fruits = listOf(
+        "Apple",
+        "Banana",
+        "Orange",
+        "Grapes",
+        "Watermelon",
+        "Pineapple",
+        "Kiwi",
+        "Strawberry"
+    )
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = greetingText,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF3F51B5)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        TextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Enter your name") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                greetingText = if (name.isNotBlank()) "Hello, $name!" else "Hello, stranger!"
-            }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Fruit List") },
+                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                    containerColor = Color(0xFF3F51B5),
+                    titleContentColor = Color.White
+                )
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            contentPadding = innerPadding,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF5F5F5))
+                .padding(8.dp)
         ) {
-            Text("Greet Me")
+            items(fruits.size) { index ->
+                FruitCard(name = fruits[index])
+            }
         }
     }
 }
+
+@Composable
+fun FruitCard(name: String) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Text(
+            text = name,
+            modifier = Modifier.padding(16.dp),
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF333333)
+        )
+    }
+}
+
 
 @Preview(showBackground = true)
 @Composable
 fun GreetingAppPreview() {
     Tsoy_Konstantin_AppTheme {
-        GreetingApp()
+        FruitListApp()
     }
 }
