@@ -1,5 +1,6 @@
 package com.example.tsoy_konstantin_app
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,20 +12,35 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.tsoy_konstantin_app.ui.theme.Tsoy_Konstantin_AppTheme
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+
+val Context.dataStore by preferencesDataStore(name = "settings")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,16 +59,20 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun FruitApp() {
     val navController = rememberNavController()
-    val viewModel: FruitViewModel = viewModel()
+    val viewModel: FruitViewModel = viewModel(
+        factory = FruitViewModelFactory(LocalContext.current)
+    )
 
     NavHost(navController = navController, startDestination = "list") {
         composable("list") {
             FruitListScreen(
                 fruits = viewModel.fruits,
+                favorites = viewModel.favorites.collectAsState(initial = emptySet()).value,
                 onFruitClick = { fruit ->
                     viewModel.selectFruit(fruit)
                     navController.navigate("detail")
-                }
+                },
+                onToggleFavorite = { viewModel.toggleFavorite(it) }
             )
         }
         composable("detail") {
@@ -64,28 +84,56 @@ fun FruitApp() {
     }
 }
 
-class FruitViewModel : ViewModel() {
+class FruitViewModel(private val context: Context) : ViewModel() {
     val fruits = listOf(
-        "Apple",
-        "Banana",
-        "Orange",
-        "Grapes",
-        "Watermelon",
-        "Pineapple",
-        "Kiwi",
-        "Strawberry"
+        "Apple", "Banana", "Orange", "Grapes", "Watermelon",
+        "Pineapple", "Kiwi", "Strawberry"
     )
+
     var selectedFruit: String? = null
         private set
 
+    private val FAVORITES_KEY = stringPreferencesKey("favorites")
+
+    val favorites: Flow<Set<String>> = context.dataStore.data
+        .map { prefs ->
+            prefs[FAVORITES_KEY]?.split(",")?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
+        }
+
     fun selectFruit(fruit: String) {
         selectedFruit = fruit
+    }
+
+    private suspend fun setFavorites(newFavorites: Set<String>) {
+        context.dataStore.edit { prefs ->
+            prefs[FAVORITES_KEY] = newFavorites.joinToString(",")
+        }
+    }
+
+    fun toggleFavorite(fruit: String) {
+        viewModelScope.launch {
+            val current = favorites.firstOrNull() ?: emptySet()
+            val updated = if (fruit in current) current - fruit else current + fruit
+            setFavorites(updated)
+        }
+    }
+}
+
+class FruitViewModelFactory(private val context: Context) :
+    ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        return FruitViewModel(context) as T
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FruitListScreen(fruits: List<String>, onFruitClick: (String) -> Unit) {
+fun FruitListScreen(
+    fruits: List<String>,
+    favorites: Set<String>,
+    onFruitClick: (String) -> Unit,
+    onToggleFavorite: (String) -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -106,7 +154,9 @@ fun FruitListScreen(fruits: List<String>, onFruitClick: (String) -> Unit) {
             items(fruits) { fruit ->
                 FruitCard(
                     name = fruit,
-                    modifier = Modifier.clickable { onFruitClick(fruit) }
+                    isFavorite = fruit in favorites,
+                    onClick = { onFruitClick(fruit) },
+                    onToggleFavorite = { onToggleFavorite(fruit) }
                 )
             }
         }
@@ -137,7 +187,7 @@ fun FruitDetailScreen(selectedFruit: String?, onBackClick: () -> Unit) {
                 .fillMaxSize()
                 .background(Color(0xFFF5F5F5))
                 .padding(innerPadding),
-            contentAlignment = androidx.compose.ui.Alignment.Center
+            contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "You selected: ${selectedFruit ?: "Nothing"}",
@@ -150,28 +200,51 @@ fun FruitDetailScreen(selectedFruit: String?, onBackClick: () -> Unit) {
 }
 
 @Composable
-fun FruitCard(name: String, modifier: Modifier = Modifier) {
+fun FruitCard(
+    name: String,
+    isFavorite: Boolean,
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit
+) {
     Card(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp, horizontal = 8.dp),
+            .padding(vertical = 4.dp, horizontal = 8.dp)
+            .clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Text(
-            text = name,
+        Row(
             modifier = Modifier.padding(16.dp),
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF333333)
-        )
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = name,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF333333)
+            )
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                    contentDescription = null,
+                    tint = if (isFavorite) Color(0xFFFFC107) else Color.Gray
+                )
+            }
+        }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewFruitList() {
+fun PreviewList() {
     Tsoy_Konstantin_AppTheme {
-        FruitListScreen(fruits = listOf("Apple", "Banana", "Kiwi"), onFruitClick = {})
+        FruitListScreen(
+            fruits = listOf("Apple", "Banana"),
+            favorites = setOf("Banana"),
+            onFruitClick = {},
+            onToggleFavorite = {}
+        )
     }
 }
